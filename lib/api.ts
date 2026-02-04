@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meherfoods.com/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sub.meherfoods.com/api'
 
 export interface Product {
   id: number
