@@ -115,8 +115,8 @@ export function ProductDetail({ slug }: ProductDetailProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden rounded-lg">
           <Image
-            src={product.image || '/placeholder.jpg'}
-            alt={product.name}
+            src={product.images?.[0]?.image_url || 'https://via.placeholder.com/500x500?text=No+Image'}
+            alt={product.images?.[0]?.alt_text || product.name}
             fill
             className="object-cover"
             priority
@@ -133,7 +133,7 @@ export function ProductDetail({ slug }: ProductDetailProps) {
           <div>
             <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
             <div className="flex items-center gap-2 mb-4">
-              <Badge variant="secondary">{product.category.name}</Badge>
+              <Badge variant="secondary">{product.category_name}</Badge>
               {product.is_featured && (
                 <Badge variant="default">Featured</Badge>
               )}
@@ -210,8 +210,8 @@ export function ProductDetail({ slug }: ProductDetailProps) {
                 <CardHeader className="p-0">
                   <div className="relative aspect-square overflow-hidden rounded-t-lg">
                     <Image
-                      src={relatedProduct.image || '/placeholder.jpg'}
-                      alt={relatedProduct.name}
+                      src={relatedProduct.images?.[0]?.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}
+                      alt={relatedProduct.images?.[0]?.alt_text || relatedProduct.name}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform"
                     />

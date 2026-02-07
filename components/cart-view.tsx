@@ -169,7 +169,7 @@ export function CartView() {
               <div className="flex gap-4">
                 <div className="relative w-20 h-20 flex-shrink-0">
                   <Image
-                    src={item.product.images[0]?.image_url || '/placeholder.jpg'}
+                    src={item.product.images[0]?.image_url || 'https://via.placeholder.com/100x100?text=No+Image'}
                     alt={item.product.name}
                     fill
                     className="object-cover rounded"
