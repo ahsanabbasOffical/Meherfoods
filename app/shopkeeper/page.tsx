@@ -7,20 +7,20 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Eye } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://sub.meherfoods.com/api';
 
 interface Delivery {
   id: number;
-  user_first_name: string;
-  user_last_name: string;
-  user_email: string;
-  product: { name: string; price: number };
+  order_name: string;
+  product: number;
+  product_name: string;
   quantity: number;
-  total_price: number;
+  total_price: string;
   address_snapshot: string;
   status: string;
   created_at: string;
@@ -29,9 +29,12 @@ interface Delivery {
 interface Invoice {
   id: number;
   invoice_number: string;
-  user_first_name: string;
-  user_last_name: string;
-  total_amount: number;
+  deliveries: Delivery[];
+  total_amount: string;
+  customer_name: string;
+  customer_email: string;
+  customer_phone: string;
+  customer_address: string;
   status: string;
   created_at: string;
 }
@@ -51,6 +54,7 @@ export default function ShopkeeperDashboard() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -153,6 +157,14 @@ export default function ShopkeeperDashboard() {
     }
   };
 
+  const viewOrderDetails = (invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+  };
+
+  const closeOrderDetails = () => {
+    setSelectedInvoice(null);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -180,13 +192,13 @@ export default function ShopkeeperDashboard() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Tabs defaultValue="orders" className="w-full">
+          <Tabs defaultValue="deliveries" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="orders">Orders</TabsTrigger>
+              <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
               <TabsTrigger value="invoices">Invoices</TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
             </TabsList>
-            <TabsContent value="orders">
+            <TabsContent value="deliveries">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -204,8 +216,8 @@ export default function ShopkeeperDashboard() {
                   {deliveries.map((delivery) => (
                     <TableRow key={delivery.id}>
                       <TableCell>{delivery.id}</TableCell>
-                      <TableCell>{delivery.user_first_name} {delivery.user_last_name} ({delivery.user_email})</TableCell>
-                      <TableCell>{delivery.product.name}</TableCell>
+                      <TableCell>{delivery.order_name}</TableCell>
+                      <TableCell>{delivery.product_name}</TableCell>
                       <TableCell>{delivery.quantity}</TableCell>
                       <TableCell>{delivery.total_price}</TableCell>
                       <TableCell className="max-w-xs truncate">{delivery.address_snapshot}</TableCell>
@@ -232,7 +244,7 @@ export default function ShopkeeperDashboard() {
                   ))}
                   {deliveries.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">No orders found.</TableCell>
+                      <TableCell colSpan={8} className="text-center py-8">No deliveries found.</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -246,9 +258,11 @@ export default function ShopkeeperDashboard() {
                     <TableHead>ID</TableHead>
                     <TableHead>Invoice Number</TableHead>
                     <TableHead>Customer</TableHead>
+                    <TableHead>Products</TableHead>
                     <TableHead>Total Amount</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created At</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -256,12 +270,28 @@ export default function ShopkeeperDashboard() {
                     <TableRow key={invoice.id}>
                       <TableCell>{invoice.id}</TableCell>
                       <TableCell>{invoice.invoice_number}</TableCell>
-                      <TableCell>{invoice.user_first_name} {invoice.user_last_name}</TableCell>
+                      <TableCell>{invoice.customer_name}</TableCell>
+                      <TableCell>{invoice.deliveries?.length || 0} item(s)</TableCell>
                       <TableCell>{invoice.total_amount}</TableCell>
                       <TableCell>{invoice.status}</TableCell>
                       <TableCell>{new Date(invoice.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => viewOrderDetails(invoice)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
+                  {invoices.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">No invoices found.</TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </TabsContent>
@@ -290,6 +320,93 @@ export default function ShopkeeperDashboard() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Order Details Dialog - Shows all products in an invoice */}
+      <Dialog open={!!selectedInvoice} onOpenChange={closeOrderDetails}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details - {selectedInvoice?.invoice_number}</DialogTitle>
+            <DialogDescription>Complete information about this order including all products</DialogDescription>
+          </DialogHeader>
+          {selectedInvoice && (
+            <div className="space-y-6">
+              {/* Customer Information */}
+              <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Customer Name</label>
+                  <p className="text-lg font-semibold">{selectedInvoice.customer_name}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Customer Email</label>
+                  <p className="text-lg">{selectedInvoice.customer_email}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                  <p className="text-lg">{selectedInvoice.customer_phone || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Status</label>
+                  <p className="text-lg font-semibold capitalize">{selectedInvoice.status}</p>
+                </div>
+              </div>
+
+              {/* Delivery Address */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Delivery Address</label>
+                <p className="text-lg">{selectedInvoice.customer_address}</p>
+              </div>
+
+              {/* Products Table */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground mb-2 block">Products Ordered</label>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Price</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedInvoice.deliveries?.map((delivery) => (
+                      <TableRow key={delivery.id}>
+                        <TableCell className="font-medium">{delivery.product_name}</TableCell>
+                        <TableCell>{delivery.quantity}</TableCell>
+                        <TableCell>PKR {delivery.total_price}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            delivery.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                            delivery.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            delivery.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {delivery.status}
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Order Summary */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <label className="text-lg font-medium">Total Amount</label>
+                  <p className="text-2xl font-bold">PKR {selectedInvoice.total_amount}</p>
+                </div>
+              </div>
+
+              {/* Order Date */}
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">Order Date</label>
+                <p className="text-lg">{new Date(selectedInvoice.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

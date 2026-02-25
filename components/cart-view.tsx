@@ -108,19 +108,63 @@ export function CartView() {
     }
   }
 
+  const { user } = useAuth()
   const handleCheckout = async () => {
+    console.log('Checkout clicked')
+    console.log('Cart:', cart)
+    console.log('User:', user)
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'Please login to place an order.',
+        variant: 'destructive',
+      })
+      router.push('/auth/login')
+      return
+    }
+    if (!cart || !cart.items || cart.items.length === 0) {
+      toast({
+        title: 'Empty Cart',
+        description: 'Please add items to your cart before checkout.',
+        variant: 'destructive',
+      })
+      return
+    }
     try {
-      const result = await api.checkout()
+      console.log('Calling checkout API...')
+      const result = await api.checkout(cart, user)
+      console.log('Checkout result:', result)
       toast({
         title: 'Success',
         description: `Order placed! Invoice: ${result.invoice_number}`,
       })
-      setCart(null) // Clear cart after successful checkout
-      router.push('/') // Redirect to home
+      setCart(null)
+      if (result.id) {
+        router.push(`/order/success?invoice_id=${result.id}`)
+      } else if (result.invoice_number) {
+        router.push(`/order/success?invoice_number=${result.invoice_number}`)
+      } else {
+        router.push('/order/success')
+      }
     } catch (err: any) {
+      let errorMessage = 'Failed to checkout.'
+      if (err.message) {
+        try {
+          const parsed = JSON.parse(err.message)
+          if (typeof parsed === 'object') {
+            errorMessage = Object.entries(parsed).map(([key, value]) => 
+              `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+            ).join('\n')
+          } else {
+            errorMessage = err.message
+          }
+        } catch (e) {
+          errorMessage = err.message
+        }
+      }
       toast({
         title: 'Checkout Failed',
-        description: err.message || 'Failed to checkout.',
+        description: errorMessage,
         variant: 'destructive',
       })
     }
@@ -181,35 +225,79 @@ export function CartView() {
                       {item.product.name}
                     </Link>
                   </h3>
-                  <p className="text-muted-foreground mb-2">
-                    PKR {item.product.price} each
-                  </p>
+                  {(item.product as any).is_sold_by_weight ? (
+                    <>
+                      <p className="text-muted-foreground mb-2">
+                        PKR {item.product.price} per gram
+                      </p>
+                      <p className="text-sm mb-2">
+                        {item.quantity} grams × PKR {item.product.price} = PKR {(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground mb-2">
+                      PKR {item.product.price} each
+                    </p>
+                  )}
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        disabled={updating === item.id.toString()}
-                      >
-                        <Minus className="h-4 w-4" />
-                      </Button>
-                      <Input
-                        type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
-                        className="w-20 text-center"
-                        min="1"
-                        disabled={updating === item.id.toString()}
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        disabled={updating === item.id.toString()}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      {(item.product as any).is_sold_by_weight ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, Math.max(50, item.quantity - 50))}
+                            disabled={updating === item.id.toString()}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, Math.max(50, parseInt(e.target.value) || 50))}
+                            className="w-24 text-center"
+                            min="50"
+                            step="50"
+                            disabled={updating === item.id.toString()}
+                          />
+                          <span className="ml-2">grams</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity + 50)}
+                            disabled={updating === item.id.toString()}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                            disabled={updating === item.id.toString()}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => updateQuantity(item.id, parseInt(e.target.value) || 1)}
+                            className="w-20 text-center"
+                            min="1"
+                            disabled={updating === item.id.toString()}
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                            disabled={updating === item.id.toString()}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
                     </div>
                     <Button
                       variant="destructive"

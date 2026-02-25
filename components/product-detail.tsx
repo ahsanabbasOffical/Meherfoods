@@ -115,8 +115,12 @@ export function ProductDetail({ slug }: ProductDetailProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden rounded-lg">
           <Image
-            src={product.image || '/placeholder.jpg'}
-            alt={product.name}
+            src={
+              product.images && product.images.length > 0
+                ? product.images[0].image_url
+                : '/placeholder.jpg'
+            }
+            alt={product.images && product.images.length > 0 ? product.images[0].alt_text : product.name}
             fill
             className="object-cover"
             priority
@@ -150,33 +154,68 @@ export function ProductDetail({ slug }: ProductDetailProps) {
 
           {/* Quantity and Actions */}
           <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium">Quantity:</label>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  disabled={quantity <= 1}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <Input
-                  type="number"
-                  value={quantity}
-                  onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 text-center"
-                  min="1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setQuantity(quantity + 1)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
+            {product.is_sold_by_weight ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium">Grams:</label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-20 text-center"
+                      min="1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(quantity + 1)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {quantity} grams × PKR {product.price} = PKR {(parseFloat(product.price) * quantity).toFixed(2)}
+                </p>
+              </>
+            ) : (
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium">Quantity:</label>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    disabled={quantity <= 1}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <Input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 text-center"
+                    min="1"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setQuantity(quantity + 1)}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex gap-3">
               <Button
@@ -210,8 +249,12 @@ export function ProductDetail({ slug }: ProductDetailProps) {
                 <CardHeader className="p-0">
                   <div className="relative aspect-square overflow-hidden rounded-t-lg">
                     <Image
-                      src={relatedProduct.image || '/placeholder.jpg'}
-                      alt={relatedProduct.name}
+                      src={
+                        relatedProduct.images && relatedProduct.images.length > 0
+                          ? relatedProduct.images[0].image_url
+                          : '/placeholder.jpg'
+                      }
+                      alt={relatedProduct.images && relatedProduct.images.length > 0 ? relatedProduct.images[0].alt_text : relatedProduct.name}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform"
                     />

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://meherfoods.com/api'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://sub.meherfoods.com/api'
 
 export interface Product {
   id: number
@@ -16,6 +16,8 @@ export interface Product {
   in_stock: boolean
   is_featured: boolean
   created_at: string
+  is_sold_by_weight?: boolean
+  weight_in_grams?: number
 }
 
 export interface Category {
@@ -80,14 +82,16 @@ class ApiClient {
   setToken(token: string) {
     this.token = token
     if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token)
+      // Store as 'token' for consistency with shopkeeper login
+      localStorage.setItem('token', token)
     }
   }
 
   getToken(): string | null {
     if (this.token) return this.token
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth_token')
+      // Check both 'token' and 'auth_token' for compatibility
+      return localStorage.getItem('token') || localStorage.getItem('auth_token')
     }
     return null
   }
@@ -95,6 +99,7 @@ class ApiClient {
   clearToken() {
     this.token = null
     if (typeof window !== 'undefined') {
+      localStorage.removeItem('token')
       localStorage.removeItem('auth_token')
     }
   }
@@ -117,8 +122,20 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      const error = await response.text()
-      throw new Error(`API Error: ${response.status} - ${error}`)
+      let errorText
+      try {
+        errorText = await response.text()
+        // Try to parse as JSON for more readable error
+        try {
+          const errorJson = JSON.parse(errorText)
+          errorText = JSON.stringify(errorJson, null, 2)
+        } catch (e) {
+          // Keep original text
+        }
+      } catch (e) {
+        errorText = 'Unknown error'
+      }
+      throw new Error(errorText)
     }
 
     return response.json()
@@ -212,9 +229,21 @@ class ApiClient {
     })
   }
 
-  async checkout() {
+  async checkout(cart: Cart, user: User) {
     return this.request('/cart/checkout/', {
       method: 'POST',
+      body: JSON.stringify({
+        cart_id: cart.id,
+        items: cart.items.map(item => ({
+          product_id: item.product.id,
+          quantity: item.quantity
+        })),
+        user_id: user.id,
+        customer_name: user.first_name + ' ' + user.last_name,
+        customer_email: user.email,
+        customer_phone: user.profile?.phone,
+        customer_address: user.profile?.address
+      })
     })
   }
 
