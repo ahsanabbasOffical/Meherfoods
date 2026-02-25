@@ -115,17 +115,8 @@ export function ProductDetail({ slug }: ProductDetailProps) {
         {/* Product Image */}
         <div className="relative aspect-square overflow-hidden rounded-lg">
           <Image
-<<<<<<< HEAD
-            src={
-              product.images && product.images.length > 0
-                ? product.images[0].image_url
-                : '/placeholder.jpg'
-            }
-            alt={product.images && product.images.length > 0 ? product.images[0].alt_text : product.name}
-=======
             src={product.images?.[0]?.image_url || 'https://via.placeholder.com/500x500?text=No+Image'}
             alt={product.images?.[0]?.alt_text || product.name}
->>>>>>> d24912344875ced5e478890a7709e3091b22d5dd
             fill
             className="object-cover"
             priority
@@ -254,17 +245,8 @@ export function ProductDetail({ slug }: ProductDetailProps) {
                 <CardHeader className="p-0">
                   <div className="relative aspect-square overflow-hidden rounded-t-lg">
                     <Image
-<<<<<<< HEAD
-                      src={
-                        relatedProduct.images && relatedProduct.images.length > 0
-                          ? relatedProduct.images[0].image_url
-                          : '/placeholder.jpg'
-                      }
-                      alt={relatedProduct.images && relatedProduct.images.length > 0 ? relatedProduct.images[0].alt_text : relatedProduct.name}
-=======
                       src={relatedProduct.images?.[0]?.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}
                       alt={relatedProduct.images?.[0]?.alt_text || relatedProduct.name}
->>>>>>> d24912344875ced5e478890a7709e3091b22d5dd
                       fill
                       className="object-cover group-hover:scale-105 transition-transform"
                     />
