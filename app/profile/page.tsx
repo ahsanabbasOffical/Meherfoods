@@ -258,7 +258,7 @@ export default function ProfilePage() {
                     <div className="space-y-4">
                       {wishlist.map(product => (
                         <div key={product.id} className="border rounded-lg p-4 flex items-center gap-4">
-                          <img src={product.images[0]?.image_url || '/placeholder.jpg'} alt={product.name} className="w-16 h-16 object-cover rounded" />
+                          <img src={product.images[0]?.image_url || 'https://via.placeholder.com/100x100?text=No+Image'} alt={product.name} className="w-16 h-16 object-cover rounded" />
                           <div className="flex-1">
                             <h4 className="font-semibold">{product.name}</h4>
                             <p className="text-sm text-muted-foreground">{product.category_name}</p>
@@ -292,7 +292,7 @@ export default function ProfilePage() {
                     <div className="space-y-4">
                       {cart.map(item => (
                         <div key={item.id} className="border rounded-lg p-4 flex items-center gap-4">
-                          <img src={item.product.images[0]?.image_url || '/placeholder.jpg'} alt={item.product.name} className="w-16 h-16 object-cover rounded" />
+                          <img src={item.product.images[0]?.image_url || 'https://via.placeholder.com/100x100?text=No+Image'} alt={item.product.name} className="w-16 h-16 object-cover rounded" />
                           <div className="flex-1">
                             <h4 className="font-semibold">{item.product.name}</h4>
                             <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>

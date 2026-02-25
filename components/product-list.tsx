@@ -167,7 +167,7 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
               <CardHeader className="p-0 relative">
                 <div className="relative aspect-square overflow-hidden rounded-t-lg">
                   <Image
-                    src={product.images?.[0]?.image_url || '/placeholder.jpg'}
+                    src={product.images?.[0]?.image_url || 'https://via.placeholder.com/300x300?text=No+Image'}
                     alt={product.name}
                     fill
                     className="object-cover group-hover:scale-105 transition-transform"
