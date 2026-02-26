@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { api, User } from './api'
+import { sendEmail } from './send-email'
 
 interface AuthContextType {
   user: User | null
@@ -44,6 +45,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await api.login({ email, password })
     api.setToken(data.token)
     setUser(data.user)
+    // Send login notification to user
+    await sendEmail({
+      to: data.user.email,
+      subject: 'Login Notification',
+      message: `Hi ${data.user.first_name || data.user.username},\n\nYou have successfully logged in to Meher Foods. If this wasn't you, please contact support.`,
+    })
+    // Send notification to shopkeeper
+    await sendEmail({
+      to: 'shopkeeper@meherfoods.com', // Change to actual shopkeeper email
+      subject: 'User Login',
+      message: `User logged in:\n\nUsername: ${data.user.username}\nEmail: ${data.user.email}`,
+    })
   }
 
   const logout = () => {
@@ -55,6 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const result = await api.register(data)
     api.setToken(result.token)
     setUser(result.user)
+    // Send confirmation email to user
+    await sendEmail({
+      to: data.email,
+      subject: 'Welcome to Meher Foods',
+      message: `Hi ${data.first_name || data.username},\n\nYour account has been created successfully at Meher Foods!\n\nThank you for registering.`,
+    })
+    // Send notification to shopkeeper
+    await sendEmail({
+      to: 'shopkeeper@meherfoods.com', // Change to actual shopkeeper email
+      subject: 'New User Registration',
+      message: `A new user has registered:\n\nUsername: ${data.username}\nEmail: ${data.email}\nName: ${data.first_name || ''} ${data.last_name || ''}`,
+    })
   }
 
   const updateProfile = async (data: { first_name?: string; last_name?: string; phone?: string; address?: string }) => {

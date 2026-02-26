@@ -1,4 +1,6 @@
+
 'use client';
+import React from 'react';
 
 import { useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -33,11 +35,37 @@ interface OrderDetails {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://sub.meherfoods.com/api';
 
 export default function OrderSuccessPage() {
+  return (
+    <React.Suspense fallback={<div className="min-h-screen flex flex-col"><Header /><main className="flex-1 flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></main><Footer /></div>}>
+      <OrderSuccessContent />
+    </React.Suspense>
+  );
+}
+
+function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [order, setOrder] = useState<OrderDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // Email notification logic
+  React.useEffect(() => {
+    if (order && order.customer_email) {
+      import('@/lib/send-email').then(({ sendEmail }) => {
+        sendEmail({
+          to: order.customer_email,
+          subject: 'Order Confirmation',
+          message: `Hi ${order.customer_name},\n\nYour order (Invoice: ${order.invoice_number}) has been placed successfully.\nTotal: PKR ${order.total_amount}\n\nThank you for shopping with Meher Foods!`,
+        });
+        sendEmail({
+          to: 'shopkeeper@meherfoods.com',
+          subject: 'New Order Placed',
+          message: `A new order has been placed:\n\nCustomer: ${order.customer_name}\nEmail: ${order.customer_email}\nInvoice: ${order.invoice_number}\nTotal: PKR ${order.total_amount}`,
+        });
+      });
+    }
+  }, [order]);
 
   const invoiceId = searchParams.get('invoice_id');
   const invoiceNumber = searchParams.get('invoice_number');
@@ -46,12 +74,12 @@ export default function OrderSuccessPage() {
     if (invoiceId) {
       fetchOrderDetails(invoiceId);
     } else if (invoiceNumber) {
-      // If we have invoice number but not ID, fetch recent orders
       fetchOrderByNumber(invoiceNumber);
     } else {
       setError('No order information available');
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoiceId, invoiceNumber]);
 
   const fetchOrderDetails = async (id: string) => {
