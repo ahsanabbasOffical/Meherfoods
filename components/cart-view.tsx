@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, CartItem } from '@/lib/api'
+import { getGuestCart, removeGuestCartItem, updateGuestCartItem, clearGuestCart } from '@/lib/guest-cart'
 import { useAuth } from '@/lib/auth-context'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,14 +21,21 @@ interface Cart {
 }
 
 export function CartView() {
+  const { user } = useAuth()
   const [cart, setCart] = useState<Cart | null>(null)
+  const [guestCart, setGuestCart] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    fetchCart()
+    if (user) {
+      fetchCart()
+    } else {
+      setGuestCart(getGuestCart())
+      setLoading(false)
+    }
   }, [])
 
   const fetchCart = async () => {
@@ -46,83 +54,203 @@ export function CartView() {
     }
   }
 
-  const updateQuantity = async (itemId: number, quantity: number) => {
-    if (quantity <= 0) {
-      await removeItem(itemId)
-      return
+  // Merge guest cart to user cart after login
+  useEffect(() => {
+    if (user && guestCart.length > 0) {
+      (async () => {
+        for (const item of guestCart) {
+          await api.addToCart(item.product.id, item.quantity)
+        }
+        clearGuestCart()
+        setGuestCart([])
+        fetchCart()
+        window.dispatchEvent(new Event('cart-updated'))
+      })()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
-    setUpdating(itemId.toString())
-    try {
-      const updatedCart = await api.updateCartItem(itemId, quantity)
-      setCart(updatedCart)
+  // Sync guest cart to server after login
+  useEffect(() => {
+    if (user && guestCart.length > 0) {
+      (async () => {
+        for (const item of guestCart) {
+          await api.addToCart(item.product.id, item.quantity)
+        }
+        clearGuestCart()
+        setGuestCart([])
+        fetchCart()
+        window.dispatchEvent(new Event('cart-updated'))
+      })()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
+
+  const updateQuantity = async (itemId: number, quantity: number) => {
+    if (user) {
+      if (quantity <= 0) {
+        await removeItem(itemId)
+        return
+      }
+      setUpdating(itemId.toString())
+      try {
+        const updatedCart = await api.updateCartItem(itemId, quantity)
+        setCart(updatedCart)
+        toast({
+          title: 'Updated',
+          description: 'Cart item quantity updated.',
+        })
+      } catch (err) {
+        toast({
+          title: 'Error',
+          description: 'Failed to update quantity.',
+          variant: 'destructive',
+        })
+      } finally {
+        setUpdating(null)
+      }
+    } else {
+      updateGuestCartItem(itemId, quantity)
+      setGuestCart(getGuestCart())
+      window.dispatchEvent(new Event('cart-updated'))
       toast({
         title: 'Updated',
         description: 'Cart item quantity updated.',
       })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update quantity.',
-        variant: 'destructive',
-      })
-    } finally {
-      setUpdating(null)
     }
   }
 
   const removeItem = async (itemId: number) => {
-    setUpdating(itemId.toString())
-    try {
-      const updatedCart = await api.removeCartItem(itemId)
-      setCart(updatedCart)
+    if (user) {
+      setUpdating(itemId.toString())
+      try {
+        const updatedCart = await api.removeCartItem(itemId)
+        setCart(updatedCart)
+        toast({
+          title: 'Removed',
+          description: 'Item removed from cart.',
+        })
+      } catch (err) {
+        toast({
+          title: 'Error',
+          description: 'Failed to remove item.',
+          variant: 'destructive',
+        })
+      } finally {
+        setUpdating(null)
+      }
+    } else {
+      removeGuestCartItem(itemId)
+      setGuestCart(getGuestCart())
+      window.dispatchEvent(new Event('cart-updated'))
       toast({
         title: 'Removed',
         description: 'Item removed from cart.',
       })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to remove item.',
-        variant: 'destructive',
-      })
-    } finally {
-      setUpdating(null)
     }
   }
 
   const clearCart = async () => {
-    try {
-      const updatedCart = await api.clearCart()
-      setCart(updatedCart)
+    if (user) {
+      try {
+        const updatedCart = await api.clearCart()
+        setCart(updatedCart)
+        toast({
+          title: 'Cleared',
+          description: 'Cart cleared.',
+        })
+      } catch (err) {
+        toast({
+          title: 'Error',
+          description: 'Failed to clear cart.',
+          variant: 'destructive',
+        })
+      }
+    } else {
+      clearGuestCart()
+      setGuestCart([])
+      window.dispatchEvent(new Event('cart-updated'))
       toast({
         title: 'Cleared',
         description: 'Cart cleared.',
       })
-    } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to clear cart.',
-        variant: 'destructive',
-      })
     }
   }
 
-  const { user } = useAuth()
   const handleCheckout = async () => {
-    console.log('Checkout clicked')
-    console.log('Cart:', cart)
-    console.log('User:', user)
     if (!user) {
-      toast({
-        title: 'Login Required',
-        description: 'Please login to place an order.',
-        variant: 'destructive',
-      })
-      router.push('/auth/login')
+      // Guest checkout: build a temporary cart from guestCart
+      if (!guestCart || guestCart.length === 0) {
+        toast({
+          title: 'Empty Cart',
+          description: 'Please add items to your cart before checkout.',
+          variant: 'destructive',
+        })
+        return
+      }
+      // Build a temporary cart object for the API
+      const tempCart = {
+        id: 0,
+        items: guestCart.map((item: any, idx: number) => ({
+          id: idx + 1,
+          product: item.product,
+          quantity: item.quantity,
+          subtotal: parseFloat(item.product.price) * item.quantity,
+        })),
+        total: guestCart.reduce((sum: number, item: any) => sum + parseFloat(item.product.price) * item.quantity, 0),
+      }
+      try {
+        const result = await api.checkout(tempCart, {
+          id: 0,
+          username: '',
+          email: '',
+          first_name: '',
+          last_name: '',
+          profile: { phone: '', address: '' },
+        })
+        toast({
+          title: 'Success',
+          description: `Order placed! Invoice: ${result.invoice_number || result.id}`,
+        })
+        setCart(null)
+        window.dispatchEvent(new Event('cart-updated'))
+        // Store order in localStorage for thank you page
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('last_order', JSON.stringify(result))
+        }
+        if (result.id) {
+          router.push(`/order/success?invoice_id=${result.id}`)
+        } else if (result.invoice_number) {
+          router.push(`/order/success?invoice_number=${result.invoice_number}`)
+        } else {
+          router.push('/order/success')
+        }
+      } catch (err: any) {
+        let errorMessage = 'Failed to checkout.'
+        if (err.message) {
+          try {
+            const parsed = JSON.parse(err.message)
+            if (typeof parsed === 'object') {
+              errorMessage = Object.entries(parsed).map(([key, value]) => 
+                `${key}: ${Array.isArray(value) ? value.join(', ') : value}`
+              ).join('\n')
+            } else {
+              errorMessage = err.message
+            }
+          } catch (e) {
+            errorMessage = err.message
+          }
+        }
+        toast({
+          title: 'Checkout Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        })
+      }
       return
     }
-    if (!cart || !cart.items || cart.items.length === 0) {
+    // Logged-in user checkout
+    if (!cart || cart.items.length === 0) {
       toast({
         title: 'Empty Cart',
         description: 'Please add items to your cart before checkout.',
@@ -131,14 +259,24 @@ export function CartView() {
       return
     }
     try {
-      console.log('Calling checkout API...')
-      const result = await api.checkout(cart, user)
-      console.log('Checkout result:', result)
+      const result = await api.checkout(cart, {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        first_name: user.first_name,
+        last_name: user.last_name,
+        profile: user.profile,
+      })
       toast({
         title: 'Success',
-        description: `Order placed! Invoice: ${result.invoice_number}`,
+        description: `Order placed! Invoice: ${result.invoice_number || result.id}`,
       })
       setCart(null)
+      window.dispatchEvent(new Event('cart-updated'))
+      // Store order in localStorage for thank you page
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('last_order', JSON.stringify(result))
+      }
       if (result.id) {
         router.push(`/order/success?invoice_id=${result.id}`)
       } else if (result.invoice_number) {
@@ -191,6 +329,141 @@ export function CartView() {
   }
 
   if (!cart || cart.items.length === 0) {
+    if (!user && guestCart.length > 0) {
+      // Show guest cart
+      return (
+        <div className="space-y-6">
+          <div className="space-y-4">
+            {guestCart.map((item) => (
+              <Card key={item.product.id}>
+                <CardContent className="p-6">
+                  <div className="flex gap-4">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <Image
+                        src={item.product.images[0]?.image_url || 'https://via.placeholder.com/100x100?text=No+Image'}
+                        alt={item.product.name}
+                        fill
+                        className="object-cover rounded"
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-lg mb-1">
+                        <Link href={`/products/${item.product.slug}`} className="hover:text-primary">
+                          {item.product.name}
+                        </Link>
+                      </h3>
+                      {item.product.is_sold_by_weight ? (
+                        <>
+                          <p className="text-muted-foreground mb-2">
+                            PKR {item.product.price} per gram
+                          </p>
+                          <p className="text-sm mb-2">
+                            {item.quantity} grams × PKR {item.product.price} = PKR {(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-muted-foreground mb-2">
+                          PKR {item.product.price} each
+                        </p>
+                      )}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                          {item.product.is_sold_by_weight ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.product.id, Math.max(50, item.quantity - 50))}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateQuantity(item.product.id, Math.max(50, parseInt(e.target.value) || 50))}
+                                className="w-24 text-center"
+                                min="50"
+                                step="50"
+                              />
+                              <span className="ml-2">grams</span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.product.id, item.quantity + 50)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
+                              >
+                                <Minus className="h-4 w-4" />
+                              </Button>
+                              <Input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateQuantity(item.product.id, parseInt(e.target.value) || 1)}
+                                className="w-20 text-center"
+                                min="1"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeItem(item.product.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-lg">
+                        PKR {(parseFloat(item.product.price) * item.quantity).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          {/* Cart Summary */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Cart Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex justify-between text-lg">
+                <span>Total:</span>
+                <span className="font-semibold">PKR {guestCart.reduce((sum, item) => sum + parseFloat(item.product.price) * item.quantity, 0).toFixed(2)}</span>
+              </div>
+              <Separator />
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={clearCart} className="flex-1">
+                  Clear Cart
+                </Button>
+                <Button onClick={handleCheckout} className="flex-1">
+                  Checkout
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    }
+    // Default empty cart
     return (
       <div className="text-center py-12">
         <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />

@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/use-toast'
+import { useAuth } from '@/lib/auth-context'
+import { addToGuestCart } from '@/lib/guest-cart'
 import { Heart, ShoppingCart, Minus, Plus } from 'lucide-react'
 
 interface ProductDetailProps {
@@ -17,6 +19,7 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ slug }: ProductDetailProps) {
+    const { user } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,10 +52,25 @@ export function ProductDetail({ slug }: ProductDetailProps) {
     if (!product) return
 
     try {
-      await api.addToCart(product.id, quantity)
+      if (user) {
+        await api.addToCart(product.id, quantity)
+      } else {
+        addToGuestCart(product, quantity)
+      }
+      window.dispatchEvent(new Event('cart-updated'))
       toast({
         title: 'Added to Cart',
         description: `${quantity} x ${product.name} added to your cart.`,
+        action: (
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/products">Continue Shopping</Link>
+            </Button>
+            <Button variant="default" size="sm" asChild>
+              <Link href="/cart">Go to Checkout</Link>
+            </Button>
+          </>
+        ),
       })
     } catch (err) {
       toast({

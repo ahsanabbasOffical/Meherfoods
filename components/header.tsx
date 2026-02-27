@@ -6,6 +6,7 @@ import { Menu, X, ShoppingCart, Search, User, LogOut, Heart } from "lucide-react
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
+import { getGuestCart } from '@/lib/guest-cart'
 import { api } from "@/lib/api"
 import {
   DropdownMenu,
@@ -23,9 +24,20 @@ export function Header() {
   const [pendingOrdersCount, setPendingOrdersCount] = useState(0)
 
   useEffect(() => {
-    if (user) {
-      fetchCounts()
+    const updateCounts = () => {
+      if (user) {
+        fetchCounts()
+      } else {
+        // Guest cart
+        const guestCart = getGuestCart()
+        setCartCount(guestCart.reduce((sum, item) => sum + item.quantity, 0))
+        setWishlistCount(0)
+        setPendingOrdersCount(0)
+      }
     }
+    updateCounts()
+    window.addEventListener('cart-updated', updateCounts)
+    return () => window.removeEventListener('cart-updated', updateCounts)
   }, [user])
 
   const fetchCounts = async () => {

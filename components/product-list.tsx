@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useToast } from '@/components/ui/use-toast'
+import { useAuth } from '@/lib/auth-context'
+import { addToGuestCart, getGuestCart } from '@/lib/guest-cart'
 import { Heart, ShoppingCart } from 'lucide-react'
 
 interface ProductListProps {
@@ -18,6 +20,7 @@ interface ProductListProps {
 }
 
 export function ProductList({ initialProducts, categoryFilter }: ProductListProps) {
+    const { user } = useAuth()
   const [products, setProducts] = useState<Product[]>(initialProducts || [])
   const [loading, setLoading] = useState(!initialProducts)
   const [error, setError] = useState<string | null>(null)
@@ -65,10 +68,27 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
 
   const handleAddToCart = async (productId: number) => {
     try {
-      await api.addToCart(productId, 1)
+      const product = products.find(p => p.id === productId)
+      if (!product) return
+      if (user) {
+        await api.addToCart(productId, 1)
+      } else {
+        addToGuestCart(product, 1)
+      }
+      window.dispatchEvent(new Event('cart-updated'))
       toast({
         title: 'Added to Cart',
         description: 'Product added to your shopping cart.',
+        action: (
+          <>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/products">Continue Shopping</Link>
+            </Button>
+            <Button variant="default" size="sm" asChild>
+              <Link href="/cart">Go to Checkout</Link>
+            </Button>
+          </>
+        ),
       })
     } catch (err) {
       toast({

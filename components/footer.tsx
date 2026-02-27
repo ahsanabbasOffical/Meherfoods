@@ -48,11 +48,11 @@ export function Footer() {
             <div className="space-y-3 text-sm">
               <div className="flex items-start gap-2">
                 <Phone className="h-4 w-4 mt-1 flex-shrink-0" />
-                <span>Phone: +92 331 2437072</span>
+                <span>Phone: +92-330-2532666</span>
               </div>
               <div className="flex items-start gap-2">
                 <Mail className="h-4 w-4 mt-1 flex-shrink-0" />
-                <span>Email: info@meherfoods.com.pk</span>
+                <span>Email: mehermasala@gmail.com</span>
               </div>
             </div>
           </div>
