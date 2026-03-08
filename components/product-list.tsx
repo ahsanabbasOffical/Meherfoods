@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { api, Product } from '@/lib/api'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/use-toast'
 import { useAuth } from '@/lib/auth-context'
 import { addToGuestCart, getGuestCart } from '@/lib/guest-cart'
 import { Heart, ShoppingCart } from 'lucide-react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
 interface ProductListProps {
   initialProducts?: Product[]
@@ -30,12 +31,57 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
   const [priceRange, setPriceRange] = useState<{ min: number; max: number }>({ min: 0, max: 10000 })
   const { toast } = useToast()
 
+  // Router and URL state for syncing filters/search
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
+  const firstLoadRef = useRef(true)
+
+  // Initialize search from URL on first render
+  useEffect(() => {
+    if (firstLoadRef.current) {
+      const initialSearch = searchParams.get('search') || ''
+      setSearchTerm(initialSearch)
+      firstLoadRef.current = false
+    }
+  }, [searchParams])
+
+  // Sync category and search to URL (replace to avoid history spam)
+  useEffect(() => {
+    const params = new URLSearchParams(searchParams.toString())
+    if (selectedCategory && selectedCategory !== 'all') {
+      params.set('category', selectedCategory)
+    } else {
+      params.delete('category')
+    }
+    if (searchTerm) {
+      params.set('search', searchTerm)
+    } else {
+      params.delete('search')
+    }
+    const qs = params.toString()
+    router.replace(`${pathname}${qs ? `?${qs}` : ''}`, { scroll: false })
+  }, [selectedCategory, searchTerm])
+
+  // Load categories once
+  useEffect(() => {
+    (async () => {
+      try {
+        const categoriesData = await api.getCategories()
+        setCategories(categoriesData)
+      } catch (err) {
+        console.error('Failed to load categories', err)
+      }
+    })()
+  }, [])
+
   useEffect(() => {
     setSelectedCategory(categoryFilter)
   }, [categoryFilter])
 
   useEffect(() => {
-    const fetchData = async () => {
+    let active = true
+    const handler = setTimeout(async () => {
       try {
         setLoading(true)
         const params: any = {
@@ -45,25 +91,22 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
         if (selectedCategory && selectedCategory !== 'all') {
           params.category = selectedCategory
         }
-        if (searchTerm) {
-          params.search = searchTerm
-        }
-
-        const [productsData, categoriesData] = await Promise.all([
-          api.getProducts(params),
-          api.getCategories(),
-        ])
+        const productsData = await api.getProducts(params)
+        if (!active) return
         setProducts(productsData)
-        setCategories(categoriesData)
       } catch (err) {
+        if (!active) return
         setError('Failed to load products')
         console.error(err)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
-    }
+    }, 400)
 
-    fetchData()
+    return () => {
+      active = false
+      clearTimeout(handler)
+    }
   }, [selectedCategory, searchTerm, priceRange])
 
   const handleAddToCart = async (productId: number) => {
@@ -144,6 +187,17 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
     )
   }
 
+  const normalizedSearch = searchTerm.trim().toLowerCase()
+  const visibleProducts = normalizedSearch
+    ? products.filter((p) =>
+        [p.name, p.description, p.category_name]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedSearch)
+      )
+    : products
+
   return (
     <div className="space-y-6">
       {/* Filters */}
@@ -176,13 +230,13 @@ export function ProductList({ initialProducts, categoryFilter }: ProductListProp
       </div>
 
       {/* Products Grid */}
-      {products.length === 0 ? (
+      {visibleProducts.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No products found matching your criteria.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <Card key={product.id} className="group hover:shadow-lg transition-shadow">
               <CardHeader className="p-0 relative">
                 <div className="relative aspect-square overflow-hidden rounded-t-lg">

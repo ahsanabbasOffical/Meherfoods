@@ -171,9 +171,14 @@ class ApiClient {
   async getProducts(params?: { category?: string; min_price?: number; max_price?: number; search?: string }) {
     const searchParams = new URLSearchParams()
     if (params?.category) searchParams.set('category', params.category)
-    if (params?.min_price) searchParams.set('min_price', params.min_price.toString())
-    if (params?.max_price) searchParams.set('max_price', params.max_price.toString())
-    if (params?.search) searchParams.set('search', params.search)
+    if (params?.min_price !== undefined) searchParams.set('min_price', params.min_price.toString())
+    if (params?.max_price !== undefined) searchParams.set('max_price', params.max_price.toString())
+    if (params?.search) {
+      const term = params.search
+      searchParams.set('search', term)
+      // Also include common aliases for compatibility with different backends
+      searchParams.set('q', term)
+    }
 
     const query = searchParams.toString()
     return this.request(`/products/${query ? `?${query}` : ''}`)

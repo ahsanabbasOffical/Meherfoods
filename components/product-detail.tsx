@@ -176,22 +176,26 @@ export function ProductDetail({ slug }: ProductDetailProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      disabled={quantity <= 1}
+                      onClick={() => setQuantity(Math.max(0.1, Math.round((quantity - 0.1) * 10) / 10))}
+                      disabled={quantity <= 0.1}
                     >
                       <Minus className="h-4 w-4" />
                     </Button>
                     <Input
                       type="number"
                       value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-20 text-center"
-                      min="1"
+                      onChange={(e) => {
+                        const next = parseFloat(e.target.value)
+                        setQuantity(Number.isNaN(next) ? 0.1 : Math.max(0.1, next))
+                      }}
+                      className="w-24 text-center"
+                      min="0.1"
+                      step="0.1"
                     />
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setQuantity(quantity + 1)}
+                      onClick={() => setQuantity(Math.round((quantity + 0.1) * 10) / 10)}
                     >
                       <Plus className="h-4 w-4" />
                     </Button>

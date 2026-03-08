@@ -373,23 +373,26 @@ export function CartView() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => updateQuantity(item.product.id, Math.max(50, item.quantity - 50))}
+                                onClick={() => updateQuantity(item.product.id, Math.max(0.1, Math.round((item.quantity - 0.1) * 10) / 10))}
                               >
                                 <Minus className="h-4 w-4" />
                               </Button>
                               <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) => updateQuantity(item.product.id, Math.max(50, parseInt(e.target.value) || 50))}
-                                className="w-24 text-center"
-                                min="50"
-                                step="50"
+                              type="number"
+                              value={item.quantity}
+                              onChange={(e) => {
+                              const next = parseFloat(e.target.value)
+                              updateQuantity(item.product.id, Number.isNaN(next) ? 0.1 : Math.max(0.1, next))
+                              }}
+                              className="w-28 text-center"
+                              min="0.1"
+                              step="0.1"
                               />
                               <span className="ml-2">grams</span>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => updateQuantity(item.product.id, item.quantity + 50)}
+                                onClick={() => updateQuantity(item.product.id, Math.round((item.quantity + 0.1) * 10) / 10)}
                               >
                                 <Plus className="h-4 w-4" />
                               </Button>
@@ -519,25 +522,28 @@ export function CartView() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.id, Math.max(50, item.quantity - 50))}
+                            onClick={() => updateQuantity(item.id, Math.max(0.1, Math.round((item.quantity - 0.1) * 10) / 10))}
                             disabled={updating === item.id.toString()}
                           >
                             <Minus className="h-4 w-4" />
                           </Button>
                           <Input
-                            type="number"
-                            value={item.quantity}
-                            onChange={(e) => updateQuantity(item.id, Math.max(50, parseInt(e.target.value) || 50))}
-                            className="w-24 text-center"
-                            min="50"
-                            step="50"
-                            disabled={updating === item.id.toString()}
+                          type="number"
+                          value={item.quantity}
+                          onChange={(e) => {
+                          const next = parseFloat(e.target.value)
+                          updateQuantity(item.id, Number.isNaN(next) ? 0.1 : Math.max(0.1, next))
+                          }}
+                          className="w-28 text-center"
+                          min="0.1"
+                          step="0.1"
+                          disabled={updating === item.id.toString()}
                           />
                           <span className="ml-2">grams</span>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => updateQuantity(item.id, item.quantity + 50)}
+                            onClick={() => updateQuantity(item.id, Math.round((item.quantity + 0.1) * 10) / 10)}
                             disabled={updating === item.id.toString()}
                           >
                             <Plus className="h-4 w-4" />
