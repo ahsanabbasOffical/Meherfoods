@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { Suspense } from 'react'
 import ClientSuccess from './success-client'
 import { Header } from '@/components/header'
