@@ -55,6 +55,8 @@ export default function ShopkeeperDashboard() {
   const [updating, setUpdating] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [lastSeenInvoiceId, setLastSeenInvoiceId] = useState<number | null>(null);
+  const [showNewOrderDialog, setShowNewOrderDialog] = useState<Invoice | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
@@ -76,6 +78,42 @@ export default function ShopkeeperDashboard() {
 
     fetchData(token);
   }, [router]);
+
+  // Poll for new invoices every 20 seconds and show a popup when a new one arrives
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    let abort = false;
+    let timer: any;
+    const poll = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/invoices/`, {
+          headers: { Authorization: `Token ${token}` },
+        });
+        if (!res.ok) return;
+        const data: Invoice[] = await res.json();
+        if (abort) return;
+        setInvoices(data);
+        if (data.length > 0) {
+          const latest = data[0];
+          if (lastSeenInvoiceId === null) {
+            setLastSeenInvoiceId(latest.id);
+          } else if (latest.id !== lastSeenInvoiceId) {
+            setLastSeenInvoiceId(latest.id);
+            setShowNewOrderDialog(latest);
+            toast({ title: 'New order received', description: `Invoice ${latest.invoice_number || latest.id}` });
+          }
+        }
+      } catch {}
+      finally {
+        if (!abort) timer = setTimeout(poll, 20000);
+      }
+    };
+
+    poll();
+    return () => { abort = true; clearTimeout(timer); };
+  }, [lastSeenInvoiceId, toast]);
 
   const fetchData = async (token: string) => {
     setLoading(true);
@@ -402,6 +440,28 @@ export default function ShopkeeperDashboard() {
               <div>
                 <label className="text-sm font-medium text-muted-foreground">Order Date</label>
                 <p className="text-lg">{new Date(selectedInvoice.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* New Order Dialog */}
+      <Dialog open={!!showNewOrderDialog} onOpenChange={() => setShowNewOrderDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New Order Received</DialogTitle>
+            <DialogDescription>A new order has been placed.</DialogDescription>
+          </DialogHeader>
+          {showNewOrderDialog && (
+            <div className="space-y-3">
+              <div className="text-sm">Invoice: <span className="font-semibold">{showNewOrderDialog.invoice_number || showNewOrderDialog.id}</span></div>
+              <div className="text-sm">Customer: {showNewOrderDialog.customer_name}</div>
+              <div className="text-sm">Items: {showNewOrderDialog.deliveries?.length || 0}</div>
+              <div className="text-sm">Total: PKR {showNewOrderDialog.total_amount}</div>
+              <div className="flex gap-2 mt-2">
+                <Button variant="outline" onClick={() => setShowNewOrderDialog(null)}>Dismiss</Button>
+                <Button onClick={() => { setSelectedInvoice(showNewOrderDialog); setShowNewOrderDialog(null); }}>View</Button>
               </div>
             </div>
           )}
