@@ -202,7 +202,7 @@ export function ProductDetail({ slug }: ProductDetailProps) {
                   </div>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {quantity} grams × PKR {product.price} = PKR {(parseFloat(product.price) * quantity).toFixed(2)}
+                  {product.is_sold_by_weight} grams × PKR {product.price} = PKR {(parseFloat(product.price) * quantity).toFixed(2)}
                 </p>
               </>
             ) : (
