@@ -19,18 +19,14 @@ interface ProductDetailProps {
 }
 
 export function ProductDetail({ slug }: ProductDetailProps) {
-    const { user } = useAuth()
+  const { user } = useAuth()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-// At the top of your component, update the useState initialization
-const [quantity, setQuantity] = useState(() => {
-  if (product?.is_sold_by_weight && product?.weight_in_grams) {
-    return product.weight_in_grams;
-  }
-  return 1;
-});  const { toast } = useToast()
+  const [quantity, setQuantity] = useState<number>(1)
+  const [minGrams, setMinGrams] = useState<number>(1)
+  const { toast } = useToast()
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -42,6 +38,14 @@ const [quantity, setQuantity] = useState(() => {
         ])
         setProduct(productData)
         setRelatedProducts(relatedData)
+        // Set quantity and minGrams to product weight if available, else 1
+        if (productData.is_sold_by_weight && productData.weight_in_grams) {
+          setQuantity(productData.weight_in_grams)
+          setMinGrams(productData.weight_in_grams)
+        } else {
+          setQuantity(1)
+          setMinGrams(1)
+        }
       } catch (err) {
         setError('Failed to load product')
         console.error(err)
@@ -173,51 +177,44 @@ const [quantity, setQuantity] = useState(() => {
 
           {/* Quantity and Actions */}
           <div className="space-y-4">
-            // In the ProductDetail component, update the section where you handle weight-based products
-
-{product.is_sold_by_weight ? (
-  <>
-    <div className="flex items-center gap-4">
-      <label className="text-sm font-medium">Grams:</label>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setQuantity(Math.max(0.1, Math.round((quantity - 0.1) * 10) / 10))}
-          disabled={quantity <= 0.1}
-        >
-          <Minus className="h-4 w-4" />
-        </Button>
-        <Input
-          type="number"
-          value={quantity}
-          onChange={(e) => {
-            const next = parseFloat(e.target.value)
-            setQuantity(Number.isNaN(next) ? 0.1 : Math.max(0.1, next))
-          }}
-          className="w-24 text-center"
-          min="0.1"
-          step="0.1"
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setQuantity(Math.round((quantity + 0.1) * 10) / 10)}
-        >
-          <Plus className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-    <p className="text-sm text-muted-foreground">
-      {product.weight_in_grams ? (
-        <>Standard pack: {product.weight_in_grams} grams · </>
-      ) : null}
-      {quantity} grams × PKR {product.price} = PKR {(parseFloat(product.price) * quantity).toFixed(2)}
-    </p>
-  </>
-) : (
-  // ... rest of your code for non-weight products
-)} : (
+            {product.is_sold_by_weight ? (
+              <>
+                <div className="flex items-center gap-4">
+                  <label className="text-sm font-medium">Grams (Min: {minGrams}g):</label>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(Math.max(minGrams, Math.round((quantity - minGrams) * 10) / 10))}
+                      disabled={quantity <= minGrams}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => {
+                        const next = parseFloat(e.target.value)
+                        setQuantity(Number.isNaN(next) ? minGrams : Math.max(minGrams, next))
+                      }}
+                      className="w-24 text-center"
+                      min={minGrams}
+                      step={minGrams}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setQuantity(quantity + minGrams)}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {quantity} grams × PKR {(parseFloat(product.price) / minGrams).toFixed(2)} per gram = PKR {(quantity * (parseFloat(product.price) / minGrams)).toFixed(2)}
+                </p>
+              </>
+            ) : (
               <div className="flex items-center gap-4">
                 <label className="text-sm font-medium">Quantity:</label>
                 <div className="flex items-center gap-2">
